@@ -1,7 +1,4 @@
 """
-This training script can be run both on a single gpu in debug mode,
-and also in a larger training run with distributed data parallel (ddp).
-
 This is intended to simulate running on GPUs with different numbers of GPUs.
 
 Run with one node:
@@ -17,6 +14,11 @@ You can customize the logging experience by calling wandb.init multiple times. W
 - "main": Log only on the main process (rank=0)
 - "node": Log on the main process and all local processes (rank=0, local_rank=0)
 - "all": Log on all processes (rank=0, local_rank=0)
+
+This will create 2 W&B runs, one for each process.
+$ torchrun --nproc-per-node 2  minimal.py --log_strategy all
+
+Note: "main" and "node" behave the same if there is only one node.
 """
 
 
