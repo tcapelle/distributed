@@ -1,3 +1,26 @@
+"""
+This training script can be run both on a single gpu in debug mode,
+and also in a larger training run with distributed data parallel (ddp).
+
+This is intended to simulate running on GPUs with different numbers of GPUs.
+
+Run with one node:
+$ torchrun --nproc-per-node 2  minimal.py
+
+Run with 2 nodes:
+- Run on one terminal:
+$ torchrun --nproc-per-node 2  --nnodes 2 --master_port=1234 --master_addr=localhost --node_rank 0 minimal.py
+- Run on another terminal:
+$ torchrun --nproc-per-node 2  --nnodes 2 --master_port=1234 --master_addr=localhost --node_rank 1 minimal.py
+
+You can customize the logging experience by calling wandb.init multiple times. We propose 3 strategies:
+- "main": Log only on the main process (rank=0)
+- "node": Log on the main process and all local processes (rank=0, local_rank=0)
+- "all": Log on all processes (rank=0, local_rank=0)
+"""
+
+
+
 import os, logging
 import random
 
