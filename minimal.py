@@ -1,5 +1,5 @@
 """
-This is intended to simulate running on GPUs with different numbers of GPUs.
+This is intended to simulate running on a multi-node multi-GPU setup
 
 Run with one node:
 $ torchrun --nproc-per-node 2  minimal.py
