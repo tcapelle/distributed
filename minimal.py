@@ -2,7 +2,7 @@
 This is intended to simulate running on a multi-node multi-GPU setup
 
 Run with one node:
-$ torchrun --nproc-per-node 2  minimal.py
+$ torchrun --nproc-per-node 2 --master_port=1234 --master_addr=localhost minimal.py
 
 Run with 2 nodes:
 - Run on one terminal:
@@ -25,6 +25,7 @@ Note: "main" and "node" behave the same if there is only one node.
 
 import os, logging
 import random
+from typing import Tuple
 
 import torch
 import torch.nn as nn
@@ -36,20 +37,21 @@ import torch.multiprocessing as mp
 import wandb
 import simple_parsing
 
-def rprint(message):
+def rprint(message: str) -> None:
     rank = os.getenv("RANK", None)
     print(f"[rank{rank}] {message}")
+
+def get_world_size_and_rank() -> Tuple[int, int]:
+    if dist.is_available() and dist.is_initialized():
+        return dist.get_world_size(), dist.get_rank(), int(os.getenv("LOCAL_RANK"))
+    else:
+        return 1, 0, 0
 
 def setup_wandb(config, log_strategy, group_name=None):
     # Setup wandb
     wandb.setup()
-    
-    rank = int(os.getenv("RANK"))
-    local_rank = int(os.getenv("LOCAL_RANK"))
-    world_size = int(dist.get_world_size())
-    node_rank = world_size // (local_rank+1)
-
-    print(f"rank: {rank}, local_rank: {local_rank}, node_rank: {node_rank}")
+    world, rank, local_rank = get_world_size_and_rank()
+    print(f"world: {world}, rank: {rank}, local_rank: {local_rank}")
 
     if (rank == 0 and log_strategy == "main"):
         # only log on rank0 process
@@ -68,16 +70,12 @@ def setup_wandb(config, log_strategy, group_name=None):
                    name=f"rank-{rank}",
                    group=group_name, 
                    config=config)
-        
-    wandb.config.update({"Node": os.getenv("NODE_RANK")})
+    if wandb.run:
+        # we can update the config to identify the node
+        wandb.config.update({"rank": rank,
+                             "local_rank": local_rank})
 
 def train():
-
-    rprint(f"Initializing process group")
-    # Initialize the process group
-    dist.init_process_group("gloo")
-
-
     rprint("Model and optimizer setup.")
     # Create model and move it to the CPU explicitly
     model = nn.Linear(10, 10)
@@ -123,6 +121,8 @@ if __name__ == "__main__":
         "batch_size": 32,
         "learning_rate": 0.001,
     }
+    rprint(f"Initializing process group")
+    dist.init_process_group("gloo")
 
     setup_wandb(config, args.log_strategy, args.group_name)
     train()
