@@ -72,7 +72,8 @@ def setup_wandb(config, log_strategy, group_name=None):
                    config=config)
     if wandb.run:
         # we can update the config to identify the node
-        wandb.config.update({"rank": rank,
+        wandb.config.update({"world_size": world,
+                             "rank": rank,
                              "local_rank": local_rank})
 
 def train():
@@ -97,6 +98,9 @@ def train():
         outputs = ddp_model(inputs)
         loss = loss_fn(outputs, targets)
         rprint(f"[Epoch {i}] Loss computed = {loss.item()}.")
+        if wandb.run:
+            wandb.log({"loss": loss.item(),
+                       "epoch": i})
 
         # Backward pass
         optimizer.zero_grad()
@@ -123,6 +127,5 @@ if __name__ == "__main__":
     }
     rprint(f"Initializing process group")
     dist.init_process_group("gloo")
-
     setup_wandb(config, args.log_strategy, args.group_name)
     train()

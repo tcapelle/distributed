@@ -36,8 +36,10 @@ wandb.init(project="distributed-example", group="my-experiment")
 In practice, when using PyTorch, this is accomplished by using the `torchrun` command to run the training script in parallel. This way, the `rank` and `local_rank` environment variables are set correctly.
 
 ```bash
-torchrun --nproc-per-node 8  distributed.py --log_strategy all --group_name my-experiment
+torchrun --nproc-per-node 4 --log_strategy all --group_name my-experiment
 ```
+
+![W&B UI](assets/1node-4gpu.png)
 
 ## Multi GPU + Multi Node(2+ machines, multiple processes)
 
@@ -81,11 +83,14 @@ You can try this by running:
 - Run on one terminal:
 
 ```bash
-$ torchrun --nproc-per-node 2  --nnodes 2 --master_port=1234 --master_addr=localhost --node_rank 0 distributed.py
+torchrun --nproc-per-node 2  --nnodes 2 --master_port=1234 --master_addr=localhost --node_rank 0 \
+    distributed.py --log_strategy node --group_name my-experiment-2
 ```
 - Run on another terminal:
 
 ```bash
-$ torchrun --nproc-per-node 2  --nnodes 2 --master_port=1234 --master_addr=localhost --node_rank 1 distributed.py
+torchrun --nproc-per-node 2  --nnodes 2 --master_port=1234 --master_addr=localhost --node_rank 1 \
+    distributed.py --log_strategy node --group_name my-experiment-2
 ```
 
+![W&B UI](assets/2node-2gpu.png)
