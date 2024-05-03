@@ -2,13 +2,13 @@
 This is intended to simulate running on a multi-node multi-GPU setup
 
 Run with one node:
-$ torchrun --nproc-per-node 2 --master_port=1234 --master_addr=localhost minimal.py
+$ torchrun --nproc-per-node 2 --master_port=1234 --master_addr=localhost distributed.py
 
 Run with 2 nodes:
 - Run on one terminal:
-$ torchrun --nproc-per-node 2  --nnodes 2 --master_port=1234 --master_addr=localhost --node_rank 0 minimal.py
+$ torchrun --nproc-per-node 2  --nnodes 2 --master_port=1234 --master_addr=localhost --node_rank 0 distributed.py
 - Run on another terminal:
-$ torchrun --nproc-per-node 2  --nnodes 2 --master_port=1234 --master_addr=localhost --node_rank 1 minimal.py
+$ torchrun --nproc-per-node 2  --nnodes 2 --master_port=1234 --master_addr=localhost --node_rank 1 distributed.py
 
 You can customize the logging experience by calling wandb.init multiple times. We propose 3 strategies:
 - "main": Log only on the main process (rank=0)
@@ -16,7 +16,7 @@ You can customize the logging experience by calling wandb.init multiple times. W
 - "all": Log on all processes (rank=0, local_rank=0)
 
 This will create 2 W&B runs, one for each process.
-$ torchrun --nproc-per-node 2  minimal.py --log_strategy all
+$ torchrun --nproc-per-node 2  distributed.py --log_strategy all
 
 Note: "main" and "node" behave the same if there is only one node.
 """
@@ -48,25 +48,25 @@ def get_world_size_and_rank() -> Tuple[int, int]:
         return 1, 0, 0
 
 def setup_wandb(config, log_strategy, group_name=None):
-    # Setup wandb
+    "Setup wandb and identify the rank of the current process"
     wandb.setup()
     world, rank, local_rank = get_world_size_and_rank()
     print(f"world: {world}, rank: {rank}, local_rank: {local_rank}")
 
     if (rank == 0 and log_strategy == "main"):
         # only log on rank0 process
-        wandb.init(project="minimal-wandb", 
+        wandb.init(project="distributed-wandb", 
                    group=group_name,
                    config=config)
     elif (local_rank == 0 and log_strategy == "node"):
         # log on local_rank==0 on each node
-        wandb.init(project="minimal-wandb", 
+        wandb.init(project="distributed-wandb", 
                    name=f"rank-{rank}",
                    group=group_name,
                    config=config)
     elif log_strategy == "all":
         # log on all processes and group them by rank
-        wandb.init(project="minimal-wandb", 
+        wandb.init(project="distributed-wandb", 
                    name=f"rank-{rank}",
                    group=group_name, 
                    config=config)
