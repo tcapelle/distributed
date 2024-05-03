@@ -28,12 +28,11 @@ if wandb.run:
     wandb.log(...)
 ```
 
-If you don't do this, you will have multiple runs for each process, which can be a bit confusing. E.g if you have 8 GPUs, you will have 8 runs for each experiment, but sometimes this can be useful and desired.
+If you don't do this, you will have multiple runs for each process, which can be a bit confusing. E.g., if you have 8 GPUs, you will have 8 runs for each experiment, but sometimes this can be useful and desired.
 
-We also enable users to bypass this on our integrations by letting them create their run (call `wandb.init` manually) and then use the integration. This is the case if you use the transformers integration. 
+We also enable users to bypass this in our integrations by letting them create their run (call `wandb.init` manually) and then use the integration. This is the case if you use the transformers integration. 
 
-A good trick when logging multiple runs is using the `group` parameter so you can visualize the runs in the W&B UI. This is useful to keep track of the runs for a given experiment that were created in different processes.
-
+A good trick when logging multiple runs is using the `group` parameter so you can visualize the runs in the W&B UI. This is useful for keeping track of the runs for a given experiment that were created in different processes.
 ```python
 # create a run on every process and group them by experiment
 wandb.init(project="distributed-example", group="my-experiment")
@@ -44,7 +43,7 @@ In practice, when using PyTorch, the forking and creation of the processes is do
 > It takes care of setting the `RANK` and `LOCAL_RANK` environment variables correctly.
 
 ```bash
-torchrun --nproc-per-node 4 --log_strategy all --group_name my-experiment
+torchrun --nproc-per-node 4 distributed.py --log_strategy all --group_name my-experiment
 ```
 
 ![W&B UI](assets/1node-4gpu.png)
