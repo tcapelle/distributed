@@ -1,6 +1,7 @@
 """
 This is intended to simulate running on a multi-node multi-GPU setup
 
+
 Run with one node:
 $ torchrun --nproc-per-node 2 --master_port=1234 --master_addr=localhost distributed.py
 
@@ -76,17 +77,44 @@ def setup_wandb(config, log_strategy, group_name=None):
                              "rank": rank,
                              "local_rank": local_rank})
 
+def load_model(fname="my_initial_model.pt"):
+    "Load the model on each rank"
+    rprint(f"Loading model from {fname}")
+    state_dict = torch.load(fname)
+    
+    # Create model and optimizer on each rank
+    model = nn.Linear(10, 10)
+    
+    # Load the model and optimizer
+    model.load_state_dict(state_dict["model"])
+    ddp_model = DDP(model, device_ids=None)  # No device_ids needed for CPU
+
+    # wait for all ranks to finish loading
+    dist.barrier()
+    return ddp_model
+
+def save_model(model, optimizer, fname="my_awesome_model.pt"):
+    if dist.get_rank() == 0:
+        rprint(f"Saving model to {fname}")
+        state_dict = {
+            "model": model.module.state_dict(),
+            "optimizer": optimizer.state_dict()
+        }
+        torch.save(state_dict, fname)
+        wandb_artifact = wandb.Artifact("my_awesome_model", type="model")
+        wandb_artifact.add_file(fname)
+        wandb.log_artifact(wandb_artifact)
+
 def train():
     rprint("Model and optimizer setup.")
     # Create model and move it to the CPU explicitly
-    model = nn.Linear(10, 10)
-    model.to(torch.device("cpu"))
-    # Wrap model with DDP using CPU
-    ddp_model = DDP(model, device_ids=None)  # No device_ids needed for CPU
+    ddp_model = load_model()    
+
+    # Create optimizer
+    optimizer = optim.SGD(ddp_model.parameters(), lr=config["learning_rate"])
 
     # Loss function and optimizer
     loss_fn = nn.MSELoss()
-    optimizer = optim.SGD(ddp_model.parameters(), lr=config["learning_rate"])
 
     rprint("Beginning training.")
     for i in range(config["epochs"]):
@@ -109,10 +137,12 @@ def train():
 
     rprint("Training step completed.")
 
+    save_model(ddp_model, optimizer)
+
     # Cleanup
     dist.destroy_process_group()
     rprint("Cleanup done.")
-    
+
 
 if __name__ == "__main__":
     parser = simple_parsing.ArgumentParser()
