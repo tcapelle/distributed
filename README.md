@@ -23,7 +23,7 @@ if rank == 0:
     wandb.init(project="distributed-example")
 
 
-# in you code, we only log if there is an active run
+# in your code, we only log if there is an active run
 if wandb.run:
     wandb.log(...)
 ```
