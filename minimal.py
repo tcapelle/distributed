@@ -36,53 +36,49 @@ import torch.multiprocessing as mp
 import wandb
 import simple_parsing
 
-N = int(1e10)
-
-def pprint(message):
+def rprint(message):
     rank = os.getenv("RANK", None)
     print(f"[rank{rank}] {message}")
 
-def setup_wandb(config, log_strategy):
+def setup_wandb(config, log_strategy, group_name=None):
     # Setup wandb
     wandb.setup()
     
     rank = int(os.getenv("RANK"))
     local_rank = int(os.getenv("LOCAL_RANK"))
+    world_size = int(dist.get_world_size())
+    node_rank = world_size // (local_rank+1)
 
-    print(f"rank: {rank}, local_rank: {local_rank}")
+    print(f"rank: {rank}, local_rank: {local_rank}, node_rank: {node_rank}")
 
     if (rank == 0 and log_strategy == "main"):
         # only log on rank0 process
-        wandb.init(project="minimal-wandb", config=config)
+        wandb.init(project="minimal-wandb", 
+                   group=group_name,
+                   config=config)
     elif (local_rank == 0 and log_strategy == "node"):
         # log on local_rank==0 on each node
         wandb.init(project="minimal-wandb", 
-                   name=f"node-{rank}",
-                   group=f"grouped-exp-{random.randint(0, N)}",
+                   name=f"rank-{rank}",
+                   group=group_name,
                    config=config)
     elif log_strategy == "all":
         # log on all processes and group them by rank
         wandb.init(project="minimal-wandb", 
                    name=f"rank-{rank}",
-                   group=f"grouped-exp-{random.randint(0, N)}", 
+                   group=group_name, 
                    config=config)
+        
+    wandb.config.update({"Node": os.getenv("NODE_RANK")})
 
-def train(log_strategy):
+def train():
 
-    pprint(f"Initializing process group")
+    rprint(f"Initializing process group")
     # Initialize the process group
     dist.init_process_group("gloo")
 
 
-    config = {
-        "epochs": 10,
-        "batch_size": 32,
-        "learning_rate": 0.001,
-    }
-
-    setup_wandb(config, log_strategy)
-
-    pprint("Model and optimizer setup.")
+    rprint("Model and optimizer setup.")
     # Create model and move it to the CPU explicitly
     model = nn.Linear(10, 10)
     model.to(torch.device("cpu"))
@@ -93,7 +89,7 @@ def train(log_strategy):
     loss_fn = nn.MSELoss()
     optimizer = optim.SGD(ddp_model.parameters(), lr=config["learning_rate"])
 
-    pprint("Beginning training.")
+    rprint("Beginning training.")
     for i in range(config["epochs"]):
         # Example input and target, explicitly on CPU
         inputs = torch.randn(config["batch_size"], 10)
@@ -102,22 +98,31 @@ def train(log_strategy):
         # Forward pass
         outputs = ddp_model(inputs)
         loss = loss_fn(outputs, targets)
-        pprint(f"[Epoch {i}] Loss computed = {loss.item()}.")
+        rprint(f"[Epoch {i}] Loss computed = {loss.item()}.")
 
         # Backward pass
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
 
-    pprint("Training step completed.")
+    rprint("Training step completed.")
 
     # Cleanup
     dist.destroy_process_group()
-    pprint("Cleanup done.")
+    rprint("Cleanup done.")
     
 
 if __name__ == "__main__":
     parser = simple_parsing.ArgumentParser()
     parser.add_argument("--log_strategy", type=str, default="main", choices=["main", "node", "all"])
+    parser.add_argument("--group_name", type=str, default=None)
     args = parser.parse_args()
-    train(args.log_strategy)
+    
+    config = {
+        "epochs": 10,
+        "batch_size": 32,
+        "learning_rate": 0.001,
+    }
+
+    setup_wandb(config, args.log_strategy, args.group_name)
+    train()
