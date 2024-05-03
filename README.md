@@ -90,14 +90,28 @@ You can try this by running:
 - Run on one terminal:
 
 ```bash
-torchrun --nproc-per-node 2  --nnodes 2 --master_port=1234 --master_addr=localhost --node_rank 0 \
-    distributed.py --log_strategy node --group_name my-experiment-2
+torchrun \
+  --nproc-per-node 2 \
+  --nnodes 2 \
+  --master_port=1234 \
+  --master_addr=localhost \
+  --node_rank 0 \
+  distributed.py \
+    --log_strategy node \
+    --group_name my-experiment-2
 ```
 - Run on another terminal:
 
 ```bash
-torchrun --nproc-per-node 2  --nnodes 2 --master_port=1234 --master_addr=localhost --node_rank 1 \
-    distributed.py --log_strategy node --group_name my-experiment-2
+torchrun \
+  --nproc-per-node 2 \
+  --nnodes 2 \
+  --master_port=1234 \
+  --master_addr=localhost \
+  --node_rank 1 \
+  distributed.py \
+    --log_strategy node \
+    --group_name my-experiment-2
 ```
 
 ![W&B UI](assets/2node-2gpu.png)
