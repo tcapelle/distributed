@@ -28,7 +28,7 @@ if wandb.run:
     wandb.log(...)
 ```
 
-If you don't do this, you will have multiple runs for each process, which can be a bit confusing. E.g if you have 8 GPUs, you will have 8 runs for each experiment. Sometimes this can be useful and desired.
+If you don't do this, you will have multiple runs for each process, which can be a bit confusing. E.g if you have 8 GPUs, you will have 8 runs for each experiment, but sometimes this can be useful and desired.
 
 We also enable users to bypass this on our integrations by letting them create their run (call `wandb.init` manually) and then use the integration. This is the case if you use the transformers integration. 
 
@@ -102,3 +102,26 @@ torchrun --nproc-per-node 2  --nnodes 2 --master_port=1234 --master_addr=localho
 ```
 
 ![W&B UI](assets/2node-2gpu.png)
+
+## Artifacts and Model Checkpoints
+
+Our integrations like HF and Lightning automatically log the model checkpoints and the optimizer states, but they are built to support single node training.
+
+You can take over the logging of the model checkpoints and the optimizer states but you need to take care of:
+
+- Wait for all process to finish and sync, this way you have the model state on the `rank 0` process.
+- Log the model checkpoint and the optimizer state on the `rank 0` process.
+
+You can achieve this by using some `torch.distributed` functionalities like `torch.distributed.barrier` to wait for all processes to finish and sync, and `torch.save` to save the model state. 
+
+```python
+if torch.distributed.get_rank() == 0:
+    state_dict = {
+        "model": model.state_dict(),
+        "optimizer": optimizer.state_dict()
+    }
+    torch.save(state_dict, "my_awesome_model.pt")
+    wandb_artifact = wandb.Artifact("my_awesome_model", type="model")
+    wandb_artifact.add_file("my_awesome_model.pt")
+    wandb.log_artifact(wandb_artifact)
+```
