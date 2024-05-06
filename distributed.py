@@ -1,7 +1,6 @@
 """
 This is intended to simulate running on a multi-node multi-GPU setup
 
-
 Run with one node:
 $ torchrun --nproc-per-node 2 --master_port=1234 --master_addr=localhost distributed.py
 
@@ -26,6 +25,7 @@ Note: "main" and "node" behave the same if there is only one node.
 
 import os, logging
 import random
+from dataclasses import dataclass
 from typing import Tuple
 
 import torch
@@ -145,10 +145,12 @@ def train():
 
 
 if __name__ == "__main__":
-    parser = simple_parsing.ArgumentParser()
-    parser.add_argument("--log_strategy", type=str, default="main", choices=["main", "node", "all"])
-    parser.add_argument("--group_name", type=str, default=None)
-    args = parser.parse_args()
+    @dataclass
+    class Args:
+        log_strategy: str = "main" #choices=["main", "node", "all"]
+        group_name: str = None
+
+    args = simple_parsing.parse(Args)
     
     config = {
         "epochs": 10,
